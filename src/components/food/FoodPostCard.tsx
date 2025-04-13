@@ -1,192 +1,196 @@
 
 import React from "react";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { 
+  CalendarRange, 
   Clock, 
   MapPin, 
-  ShoppingBag, 
   Store, 
-  ExternalLink, 
-  Trash2,
-  CheckCircle2
+  Trash2, 
+  ShoppingBag,
+  AlertCircle
 } from "lucide-react";
-import { formatDistanceToNow, differenceInHours, formatRelative } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { FoodPost } from "@/types";
 import { useUser } from "@/contexts/UserContext";
-import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface FoodPostCardProps {
   post: FoodPost;
-  onView?: () => void;
-  onClaim?: () => void;
   onDelete?: () => void;
-  onEdit?: () => void;
+  onClaim?: () => void;
+  onView?: () => void;
   compact?: boolean;
 }
 
 const FoodPostCard: React.FC<FoodPostCardProps> = ({ 
   post, 
-  onView, 
+  onDelete, 
   onClaim, 
-  onDelete,
-  onEdit,
-  compact = false
+  onView,
+  compact = false 
 }) => {
   const { user } = useUser();
-  const isExpired = new Date(post.expiresAt) < new Date();
-  const isMine = user?.id === post.businessId;
-  const isClaimed = post.claimed === true;
   
-  // Calculate freshness based on expiry time
-  const hoursUntilExpiry = differenceInHours(new Date(post.expiresAt), new Date());
-  let freshnessTag;
-  let freshnessClass;
+  // Calculate time to expiry
+  const expiryDate = new Date(post.expiresAt);
+  const now = new Date();
+  const isExpired = expiryDate < now;
+  const timeToExpiry = formatDistanceToNow(expiryDate, { addSuffix: true });
   
-  if (isExpired) {
-    freshnessTag = "Expired";
-    freshnessClass = "expired";
-  } else if (hoursUntilExpiry <= 3) {
-    freshnessTag = "Expires soon";
-    freshnessClass = "expires-soon";
-  } else {
-    freshnessTag = "Fresh";
-    freshnessClass = "fresh";
-  }
-
+  // Determine tag style
+  const getExpiryTagClass = () => {
+    if (isExpired) return "expired";
+    
+    const diffMs = expiryDate.getTime() - now.getTime();
+    const diffHrs = diffMs / (1000 * 60 * 60);
+    
+    return diffHrs <= 3 ? "expires-soon" : "fresh";
+  };
+  
+  // Determine color based on food category
+  const getCategoryColor = () => {
+    switch (post.category) {
+      case "produce": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      case "bakery": return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
+      case "prepared": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "dairy": return "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200";
+      default: return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
+    }
+  };
+  
+  if (!user) return null;
+  
   return (
-    <Card className={cn(
-      "border overflow-hidden card-hover", 
-      isExpired && "opacity-70",
-      isClaimed && "border-primary/30 bg-primary/5",
-      compact ? "h-full" : ""
-    )}>
-      <CardHeader className={cn(
-        "flex-row items-start justify-between space-y-0 gap-4 pb-2",
-        compact && "p-3"
-      )}>
-        <div className="flex flex-col min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className={cn(
-              "font-semibold truncate",
-              compact ? "text-sm" : "text-lg"
-            )}>
+    <Card className={compact ? "" : "h-full"}>
+      <CardHeader className={compact ? "p-3" : "p-4"}>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className={compact ? "text-base" : "text-lg"}>
               {post.foodName}
-            </h3>
-            <Badge variant="outline" className={cn("food-tag", freshnessClass)}>
-              {freshnessTag}
-            </Badge>
+            </CardTitle>
+            <p className={`text-muted-foreground ${compact ? "text-xs" : "text-sm"} mt-1`}>
+              {post.businessName}
+            </p>
           </div>
-          <p className={cn(
-            "text-muted-foreground truncate",
-            compact ? "text-xs" : "text-sm"
-          )}>
-            {post.quantity}
-          </p>
+          
+          <div className="flex flex-col items-end gap-1">
+            <Badge className={`${getCategoryColor()} capitalize`}>
+              {post.category}
+            </Badge>
+            
+            <span className={`food-tag ${getExpiryTagClass()} ${compact ? "text-xs" : ""}`}>
+              {isExpired ? "Expired" : timeToExpiry}
+            </span>
+          </div>
         </div>
       </CardHeader>
       
-      <CardContent className={cn(
-        "space-y-2",
-        compact ? "px-3 py-2" : "px-6"
-      )}>
+      <CardContent className={compact ? "p-3 pt-0" : "p-4 pt-0"}>
         {!compact && post.description && (
-          <p className="text-sm text-muted-foreground">{post.description}</p>
+          <div className="mb-3">
+            <p className="text-sm">{post.description}</p>
+          </div>
         )}
         
-        <div className="flex flex-col gap-1">
-          <div className={cn(
-            "flex items-center text-muted-foreground gap-1.5",
-            compact ? "text-xs" : "text-sm"
-          )}>
-            <Store className={cn(compact ? "h-3 w-3" : "h-4 w-4")} />
-            <span className="truncate">{post.businessName}</span>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+            <span className={compact ? "text-xs" : "text-sm"}>
+              {post.quantity}
+            </span>
           </div>
           
-          <div className={cn(
-            "flex items-center text-muted-foreground gap-1.5",
-            compact ? "text-xs" : "text-sm"
-          )}>
-            <MapPin className={cn(compact ? "h-3 w-3" : "h-4 w-4")} />
-            <span className="truncate">{post.address}</span>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            <span className={compact ? "text-xs" : "text-sm"}>
+              {post.address}
+              {post.distance !== undefined && (
+                <span className="ml-1 text-muted-foreground">
+                  ({post.distance.toFixed(1)} km away)
+                </span>
+              )}
+            </span>
           </div>
           
-          <div className={cn(
-            "flex items-center text-muted-foreground gap-1.5",
-            compact ? "text-xs" : "text-sm"
-          )}>
-            <Clock className={cn(compact ? "h-3 w-3" : "h-4 w-4")} />
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>{isExpired 
-                    ? `Expired ${formatDistanceToNow(new Date(post.expiresAt))} ago` 
-                    : `Expires ${formatDistanceToNow(new Date(post.expiresAt))} from now`}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {formatRelative(new Date(post.expiresAt), new Date())}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <span className={compact ? "text-xs" : "text-sm"}>
+              {isExpired ? (
+                <span className="text-muted-foreground">Expired {timeToExpiry}</span>
+              ) : (
+                <span>Available until {expiryDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+              )}
+            </span>
           </div>
-          
-          {isClaimed && (
-            <div className={cn(
-              "flex items-center gap-1.5 text-primary",
-              compact ? "text-xs" : "text-sm"
-            )}>
-              <CheckCircle2 className={cn(compact ? "h-3 w-3" : "h-4 w-4")} />
-              <span>Claimed</span>
-            </div>
-          )}
         </div>
       </CardContent>
       
-      {!compact && (
-        <CardFooter className={cn(
-          "flex gap-2",
-          compact ? "px-3 py-2" : ""
-        )}>
-          {onView && (
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              className="flex-1 gap-1" 
-              onClick={onView}
-            >
-              <ExternalLink className="h-4 w-4" />
-              View
-            </Button>
-          )}
+      <CardFooter className={compact ? "p-3 pt-2" : "p-4 pt-2"}>
+        <div className="w-full">
+          {!compact && <Separator className="mb-3" />}
           
-          {user?.role === "charity" && !isExpired && !isClaimed && onClaim && (
-            <Button 
-              variant="default" 
-              size="sm" 
-              className="flex-1 gap-1" 
-              onClick={onClaim}
-            >
-              <ShoppingBag className="h-4 w-4" />
-              Claim
-            </Button>
-          )}
-          
-          {isMine && onDelete && (
-            <Button 
-              variant="destructive" 
-              size="sm" 
-              className="gap-1" 
-              onClick={onDelete}
-            >
-              <Trash2 className="h-4 w-4" />
-              {compact ? "" : "Delete"}
-            </Button>
-          )}
-        </CardFooter>
-      )}
+          <div className="flex gap-2 justify-end">
+            {user.role === "charity" && !post.claimed && !isExpired && onClaim && (
+              <Button 
+                onClick={onClaim}
+                className={compact ? "h-8 text-xs" : ""}
+              >
+                Claim
+              </Button>
+            )}
+            
+            {user.role === "business" && post.businessId === user.id && onDelete && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className={`${compact ? "h-8 text-xs" : ""} gap-1`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {!compact && "Delete"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete this food post.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            
+            {onView && (
+              <Button 
+                variant={user.role === "charity" && !isExpired ? "outline" : "default"}
+                className={compact ? "h-8 text-xs" : ""}
+                onClick={onView}
+              >
+                View Details
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardFooter>
     </Card>
   );
 };

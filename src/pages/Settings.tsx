@@ -1,270 +1,274 @@
 
 import React, { useState } from "react";
-import { useUser } from "@/contexts/UserContext";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { 
-  Bell, 
-  MapPin, 
-  Save, 
-  Settings as SettingsIcon, 
-  Trash2,
-  UserRound
-} from "lucide-react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { clearAll, saveUser } from "@/utils/storage";
+import { Slider } from "@/components/ui/slider";
+import { Separator } from "@/components/ui/separator";
+import { Bell, Moon, LogOut, MapPin, User, Filter, Trash2 } from "lucide-react";
+import { useUser } from "@/contexts/UserContext";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { toast } from "@/components/ui/use-toast";
-import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { FoodCategory } from "@/types";
+import { saveUser } from "@/utils/storage";
 
-const Settings: React.FC = () => {
-  const { user, logout } = useUser();
-  const { addNotification } = useNotifications();
-  const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
-  const [name, setName] = useState(user?.name || "");
-  const [notifications, setNotifications] = useState({
-    newFood: true,
-    claims: true,
-    expiryReminders: true
-  });
-
+const Settings = () => {
+  const { user, logout, login } = useUser();
+  const { clearUserNotifications } = useNotifications();
+  
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    user?.preferences?.notificationEnabled !== false
+  );
+  
+  const [maxDistance, setMaxDistance] = useState(
+    user?.preferences?.maxDistance || 10
+  );
+  
+  const [selectedCategories, setSelectedCategories] = useState<FoodCategory[]>(
+    user?.preferences?.foodCategories || []
+  );
+  
   if (!user) return null;
-
-  const handleSaveProfile = () => {
-    if (!user) return;
+  
+  const handleCategoryToggle = (category: FoodCategory) => {
+    const newCategories = selectedCategories.includes(category)
+      ? selectedCategories.filter(c => c !== category)
+      : [...selectedCategories, category];
+      
+    setSelectedCategories(newCategories);
     
-    // Update user name
-    const updatedUser = {
-      ...user,
-      name: name.trim()
-    };
+    if (user.preferences) {
+      const updatedUser = {
+        ...user,
+        preferences: {
+          ...user.preferences,
+          foodCategories: newCategories
+        }
+      };
+      
+      saveUser(updatedUser);
+      login(updatedUser);
+    }
+  };
+  
+  const handleNotificationsToggle = (enabled: boolean) => {
+    setNotificationsEnabled(enabled);
     
-    saveUser(updatedUser);
+    if (user.preferences) {
+      const updatedUser = {
+        ...user,
+        preferences: {
+          ...user.preferences,
+          notificationEnabled: enabled
+        }
+      };
+      
+      saveUser(updatedUser);
+      login(updatedUser);
+      
+      toast({
+        title: enabled ? "Notifications enabled" : "Notifications disabled",
+        description: enabled 
+          ? "You'll receive notifications for relevant events" 
+          : "You won't receive any notifications"
+      });
+    }
+  };
+  
+  const handleDistanceChange = (value: number) => {
+    setMaxDistance(value);
     
-    // Notify user
-    addNotification({
-      userId: user.id,
-      title: "Profile Updated",
-      message: "Your profile information has been updated successfully.",
-      type: "system"
-    });
-    
+    if (user.preferences) {
+      const updatedUser = {
+        ...user,
+        preferences: {
+          ...user.preferences,
+          maxDistance: value
+        }
+      };
+      
+      saveUser(updatedUser);
+      login(updatedUser);
+    }
+  };
+  
+  const handleClearNotifications = () => {
+    clearUserNotifications(user.id);
     toast({
-      title: "Profile Updated",
-      description: "Your profile information has been updated successfully.",
+      title: "Notifications cleared",
+      description: "All your notifications have been cleared"
     });
   };
-
-  const handleClearData = () => {
-    clearAll();
+  
+  const handleLogout = () => {
     logout();
-    
     toast({
-      title: "Data Cleared",
-      description: "All your data has been cleared. You will be logged out.",
+      title: "Logged out",
+      description: "You've been successfully logged out"
     });
   };
-
+  
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="text-muted-foreground">
-          Manage your account preferences
+          Manage your account settings and preferences
         </p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Profile Settings */}
-        <Card className="md:col-span-2">
+      <div className="grid gap-6">
+        {/* Account Settings */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <UserRound className="h-5 w-5" />
-              Profile Settings
+              <User className="h-5 w-5" /> Account
             </CardTitle>
             <CardDescription>
-              Update your personal information
+              Manage your account information
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input 
-                id="name" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                placeholder="Your name or organization"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Input 
-                id="role" 
-                value={user.role === "business" ? "Food Business" : "Charity/Shelter"} 
-                disabled 
-              />
-              <p className="text-xs text-muted-foreground">
-                Your role cannot be changed
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <div className="flex items-center space-x-2 h-10 px-3 border rounded-md bg-muted/40">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground truncate">Using your current location</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Name</Label>
+                <p className="text-sm font-medium mt-1">{user.name}</p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Location is automatically determined
-              </p>
+              <div>
+                <Label>Role</Label>
+                <p className="text-sm font-medium mt-1 capitalize">{user.role}</p>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <Button 
+              variant="destructive" 
+              className="gap-2"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" /> Log Out
+            </Button>
+          </CardContent>
+        </Card>
+        
+        {/* Appearance Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Moon className="h-5 w-5" /> Appearance
+            </CardTitle>
+            <CardDescription>
+              Customize how Food Share Connect looks
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Theme</Label>
+                <p className="text-sm text-muted-foreground">
+                  Choose between light, dark, or system theme
+                </p>
+              </div>
+              <ThemeToggle />
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button onClick={handleSaveProfile} className="gap-2">
-              <Save className="h-4 w-4" />
-              Save Changes
-            </Button>
-          </CardFooter>
         </Card>
         
         {/* Notification Settings */}
-        <Card className="md:col-span-1">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Notifications
+              <Bell className="h-5 w-5" /> Notifications
             </CardTitle>
             <CardDescription>
-              Manage your notification preferences
+              Configure your notification preferences
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="new-food">New Food Alerts</Label>
-                <p className="text-xs text-muted-foreground">
+              <div>
+                <Label htmlFor="notifications">Enable Notifications</Label>
+                <p className="text-sm text-muted-foreground">
                   {user.role === "business" 
-                    ? "When a charity claims your food" 
-                    : "When new food is posted nearby"}
+                    ? "Get notified when your food is claimed" 
+                    : "Get notified about new food available nearby"}
                 </p>
               </div>
               <Switch 
-                id="new-food"
-                checked={notifications.newFood}
-                onCheckedChange={(checked) => 
-                  setNotifications(prev => ({ ...prev, newFood: checked }))
-                }
+                id="notifications"
+                checked={notificationsEnabled}
+                onCheckedChange={handleNotificationsToggle}
               />
             </div>
             
             <Separator />
             
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="claims">Claim Notifications</Label>
-                <p className="text-xs text-muted-foreground">
-                  {user.role === "business" 
-                    ? "When your food is claimed"
-                    : "Reminders about your claims"}
-                </p>
-              </div>
-              <Switch 
-                id="claims"
-                checked={notifications.claims}
-                onCheckedChange={(checked) => 
-                  setNotifications(prev => ({ ...prev, claims: checked }))
-                }
-              />
-            </div>
-            
-            <Separator />
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="expiry">Expiry Reminders</Label>
-                <p className="text-xs text-muted-foreground">
-                  {user.role === "business" 
-                    ? "When your food is about to expire"
-                    : "When claimed food is expiring"}
-                </p>
-              </div>
-              <Switch 
-                id="expiry"
-                checked={notifications.expiryReminders}
-                onCheckedChange={(checked) => 
-                  setNotifications(prev => ({ ...prev, expiryReminders: checked }))
-                }
-              />
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button variant="outline" className="w-full" onClick={() => {
-              toast({
-                title: "Notification Settings Saved",
-                description: "Your notification preferences have been updated.",
-              });
-            }}>
-              Save Preferences
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={handleClearNotifications}
+            >
+              <Trash2 className="h-4 w-4" /> Clear All Notifications
             </Button>
-          </CardFooter>
+          </CardContent>
         </Card>
         
-        {/* Danger Zone */}
-        <Card className="md:col-span-3 border-destructive/10">
+        {/* Preferences */}
+        <Card>
           <CardHeader>
-            <CardTitle className="text-destructive flex items-center gap-2">
-              <SettingsIcon className="h-5 w-5" />
-              Danger Zone
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" /> Preferences
             </CardTitle>
             <CardDescription>
-              Irreversible actions for your account
+              Set your food and distance preferences
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-destructive/20 rounded-md bg-destructive/5">
-              <div>
-                <h3 className="font-medium mb-1">Clear All Data</h3>
+          <CardContent className="space-y-6">
+            {/* Food Categories */}
+            <div className="space-y-3">
+              <Label>Food Categories</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {(["produce", "bakery", "prepared", "dairy", "other"] as FoodCategory[]).map((category) => (
+                  <div 
+                    key={category}
+                    className={`px-3 py-2 rounded-md border cursor-pointer transition-colors ${
+                      selectedCategories.includes(category) 
+                        ? "bg-primary/10 border-primary" 
+                        : "bg-card border-input hover:bg-accent/50"
+                    }`}
+                    onClick={() => handleCategoryToggle(category)}
+                  >
+                    <p className="font-medium capitalize">{category}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {user.role === "charity" && (
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <Label htmlFor="distance">Maximum Distance</Label>
+                  <span className="text-sm text-muted-foreground">{maxDistance} km</span>
+                </div>
+                <Slider
+                  id="distance"
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={[maxDistance]}
+                  onValueChange={(values) => handleDistanceChange(values[0])}
+                />
                 <p className="text-sm text-muted-foreground">
-                  This will permanently delete all your data, including food posts, claims, and settings.
+                  Only show food posts within this distance
                 </p>
               </div>
-              <Button 
-                variant="destructive" 
-                onClick={() => setIsConfirmClearOpen(true)}
-                className="sm:w-auto w-full gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Clear Data
-              </Button>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
-      
-      {/* Clear Data Confirmation Dialog */}
-      <AlertDialog open={isConfirmClearOpen} onOpenChange={setIsConfirmClearOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete all your data and log you out.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleClearData}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Clear All Data
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

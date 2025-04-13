@@ -1,234 +1,312 @@
 
-import React, { useState } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { CalendarIcon, Store, MapPin, Package, AlarmClock, Clock } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CalendarIcon, AlertCircle } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useUser } from "@/contexts/UserContext";
-import { generateId, saveFoodPost } from "@/utils/storage";
+import { FoodPost, FoodCategory, User, RecommendedMatch } from "@/types";
+import { v4 as uuidv4 } from "@/utils/uuid";
+import { saveFoodPost, getUsers } from "@/utils/storage";
 import { useNotifications } from "@/contexts/NotificationContext";
-import { FoodPost } from "@/types";
-import { getAddressFromCoordinates } from "@/utils/geo";
-import { toast } from "@/components/ui/use-toast";
-
-// Form validation schema
-const foodPostSchema = z.object({
-  foodName: z.string().min(3, { message: "Food name must be at least 3 characters" }),
-  quantity: z.string().min(1, { message: "Quantity is required" }),
-  description: z.string().optional(),
-  expiryHours: z.coerce.number().min(1, { message: "Expiry time must be at least 1 hour" }).max(72, { message: "Expiry time cannot exceed 72 hours" }),
-});
-
-type FoodPostFormValues = z.infer<typeof foodPostSchema>;
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { detectDuplicatePost, findMatchingCharities } from "@/utils/ai";
 
 interface FoodPostFormProps {
-  onSuccess?: () => void;
+  onSuccess: () => void;
 }
 
 const FoodPostForm: React.FC<FoodPostFormProps> = ({ onSuccess }) => {
   const { user } = useUser();
   const { addNotification } = useNotifications();
+  const [foodName, setFoodName] = useState("");
+  const [category, setCategory] = useState<FoodCategory>("other");
+  const [quantity, setQuantity] = useState("");
+  const [description, setDescription] = useState("");
+  const [expiresAt, setExpiresAt] = useState<Date | undefined>(
+    new Date(Date.now() + 3 * 60 * 60 * 1000) // Default 3 hours from now
+  );
+  const [address, setAddress] = useState(user?.address || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [possibleDuplicate, setPossibleDuplicate] = useState(false);
+  const [recommendedCharities, setRecommendedCharities] = useState<RecommendedMatch[]>([]);
 
-  const form = useForm<FoodPostFormValues>({
-    resolver: zodResolver(foodPostSchema),
-    defaultValues: {
-      foodName: "",
-      quantity: "",
-      description: "",
-      expiryHours: 24,
-    },
-  });
+  useEffect(() => {
+    if (user && user.address) {
+      setAddress(user.address);
+    }
+  }, [user]);
 
-  const onSubmit = async (data: FoodPostFormValues) => {
-    if (!user) return;
+  const handleDateSelect = (date: Date | undefined) => {
+    setExpiresAt(date);
+  };
+
+  const checkForDuplicates = () => {
+    if (!foodName || !user) return;
+
+    // Get all existing posts
+    const existingPosts = JSON.parse(localStorage.getItem("posts") || "[]");
     
+    const newPost = {
+      businessId: user.id,
+      foodName,
+      quantity,
+      category
+    };
+    
+    const isDuplicate = detectDuplicatePost(newPost, existingPosts);
+    setPossibleDuplicate(isDuplicate);
+  };
+
+  useEffect(() => {
+    if (foodName) {
+      const debounce = setTimeout(() => {
+        checkForDuplicates();
+      }, 500);
+      
+      return () => clearTimeout(debounce);
+    }
+  }, [foodName, category]);
+
+  const findRecommendedCharities = () => {
+    if (!user) return [];
+    
+    // Construct a partial food post to use for matching
+    const draftPost: FoodPost = {
+      id: "",
+      businessId: user.id,
+      businessName: user.name,
+      foodName,
+      quantity,
+      description,
+      expiresAt: expiresAt?.toISOString() || new Date().toISOString(),
+      location: user.location,
+      address: address || "",
+      timestamp: new Date().toISOString(),
+      category
+    };
+    
+    // Get all users
+    const allUsers = getUsers();
+    
+    // Find matching charities
+    const matches = findMatchingCharities(draftPost, allUsers);
+    setRecommendedCharities(matches);
+  };
+
+  useEffect(() => {
+    if (foodName && category && user) {
+      const debounce = setTimeout(() => {
+        findRecommendedCharities();
+      }, 1000);
+      
+      return () => clearTimeout(debounce);
+    }
+  }, [foodName, category, quantity]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !expiresAt) return;
+
     setIsSubmitting(true);
-    
+
     try {
-      // Get current time and calculate expiry time
-      const now = new Date();
-      const expiryTime = new Date(now.getTime() + data.expiryHours * 60 * 60 * 1000);
-      
-      // Get address from user's coordinates
-      const address = await getAddressFromCoordinates(user.location);
-      
       // Create new food post
       const newPost: FoodPost = {
-        id: generateId(),
+        id: uuidv4(),
         businessId: user.id,
         businessName: user.name,
-        foodName: data.foodName,
-        quantity: data.quantity,
-        description: data.description,
-        expiresAt: expiryTime.toISOString(),
+        foodName,
+        quantity,
+        description,
+        expiresAt: expiresAt.toISOString(),
         location: user.location,
-        address,
-        timestamp: now.toISOString(),
+        address: address || "",
+        timestamp: new Date().toISOString(),
+        category
       };
-      
-      // Save to local storage
+
+      // Save to storage
       saveFoodPost(newPost);
-      
-      // Create notification for the business
-      addNotification({
-        userId: user.id,
-        title: "Food post created",
-        message: `Your listing for "${data.foodName}" has been posted successfully.`,
-        type: "new_post",
-        relatedPostId: newPost.id,
+
+      // Notify nearby charities (within 10km)
+      const nearbyCharities = getUsers().filter(
+        (charity) =>
+          charity.role === "charity" &&
+          charity.preferences?.notificationEnabled !== false
+      );
+
+      // Add notifications for charities
+      nearbyCharities.forEach((charity) => {
+        addNotification({
+          userId: charity.id,
+          title: "New Food Available",
+          message: `${user.name} posted ${foodName} available for pickup.`,
+          type: "new_post",
+          relatedPostId: newPost.id
+        });
       });
-      
-      // Reset form
-      form.reset();
-      
-      // Show success toast
-      toast({
-        title: "Food posted successfully",
-        description: "Your food listing has been shared with nearby charities.",
+
+      // Notify the recommended charities with a more personalized message
+      recommendedCharities.forEach(match => {
+        addNotification({
+          userId: match.charityId,
+          title: "Recommended Food Match!",
+          message: `${user.name} posted ${foodName} that matches your preferences (${match.matchReason.toLowerCase()}).`,
+          type: "new_post",
+          relatedPostId: newPost.id
+        });
       });
-      
-      // Call success callback
-      if (onSuccess) {
-        onSuccess();
-      }
+
+      // Success callback
+      onSuccess();
     } catch (error) {
       console.error("Error posting food:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to post food. Please try again."
-      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!user || user.role !== "business") {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>
-          Only businesses can post food listings.
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  if (!user) return null;
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="foodName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Food Name</FormLabel>
-                <FormControl>
-                  <div className="flex items-center space-x-2">
-                    <Package className="h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="e.g., Fresh bread, Produce, Prepared meals" {...field} />
-                  </div>
-                </FormControl>
-                <FormDescription>
-                  What food items are you sharing?
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="quantity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Quantity</FormLabel>
-                <FormControl>
-                  <div className="flex items-center space-x-2">
-                    <Store className="h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="e.g., 5 loaves, 3kg, 10 portions" {...field} />
-                  </div>
-                </FormControl>
-                <FormDescription>
-                  How much food is available?
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description (Optional)</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Any additional details about the food (dietary info, storage needs, etc.)" 
-                  className="resize-none" 
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="food-name">Food Item Name</Label>
+        <Input
+          id="food-name"
+          placeholder="e.g., Fresh Bread, Produce Box"
+          value={foodName}
+          onChange={(e) => setFoodName(e.target.value)}
+          required
         />
-        
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="expiryHours"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Expires In (Hours)</FormLabel>
-                <FormControl>
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <Input type="number" min={1} max={72} {...field} />
-                  </div>
-                </FormControl>
-                <FormDescription>
-                  How many hours until this food should be picked up?
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormItem>
-            <FormLabel>Pickup Location</FormLabel>
-            <div className="flex items-center space-x-2 h-10 px-3 border rounded-md bg-muted/40">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground truncate">Using your current location</span>
-            </div>
-            <FormDescription>
-              Food will be available at your current location
-            </FormDescription>
-          </FormItem>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="food-category">Category</Label>
+        <Select value={category} onValueChange={(val) => setCategory(val as FoodCategory)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="produce">Produce</SelectItem>
+            <SelectItem value="bakery">Bakery</SelectItem>
+            <SelectItem value="prepared">Prepared Food</SelectItem>
+            <SelectItem value="dairy">Dairy</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="quantity">Quantity</Label>
+        <Input
+          id="quantity"
+          placeholder="e.g., 5 loaves, 3 kg, 2 trays"
+          value={quantity}
+          onChange={(e) => setQuantity(e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description">Description (Optional)</Label>
+        <Textarea
+          id="description"
+          placeholder="Add any details about the food..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="expires-at">Available Until</Label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full justify-start text-left font-normal",
+                !expiresAt && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {expiresAt ? format(expiresAt, "PPP p") : "Select date and time"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0">
+            <Calendar
+              mode="single"
+              selected={expiresAt}
+              onSelect={handleDateSelect}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="address">Pickup Address</Label>
+        <Input
+          id="address"
+          placeholder="Enter pickup address"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          required
+        />
+      </div>
+
+      {possibleDuplicate && (
+        <Alert variant="warning">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Possible duplicate post</AlertTitle>
+          <AlertDescription>
+            You might have already posted a similar food item recently.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {recommendedCharities.length > 0 && (
+        <div className="space-y-2 bg-accent/50 p-3 rounded-md">
+          <h3 className="font-medium">Recommended Charities</h3>
+          <p className="text-sm text-muted-foreground">
+            These organizations might be interested in your donation:
+          </p>
+          <div className="space-y-2 mt-2">
+            {recommendedCharities.map((match, idx) => (
+              <div key={idx} className="flex items-center justify-between text-sm p-2 bg-background rounded-md">
+                <div>
+                  <p className="font-medium">{match.charityName}</p>
+                  <p className="text-xs text-muted-foreground">{match.matchReason}</p>
+                </div>
+                <span className="text-xs">{match.distance.toFixed(1)} km</span>
+              </div>
+            ))}
+          </div>
         </div>
-        
-        <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? "Posting..." : "Post Food"}
-        </Button>
-      </form>
-    </Form>
+      )}
+
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? "Posting..." : "Post Food"}
+      </Button>
+    </form>
   );
 };
 

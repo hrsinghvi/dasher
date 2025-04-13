@@ -7,6 +7,14 @@ export type User = {
   role: UserRole;
   location: { lat: number; lng: number };
   address?: string;
+  onboardingCompleted?: boolean;
+  preferences?: {
+    foodCategories?: FoodCategory[];
+    maxDistance?: number;
+    notificationEnabled?: boolean;
+    categoryPreferences?: Record<FoodCategory, number>; // 1-5 rating
+  };
+  reliability?: number; // 0-100 score based on pickup reliability
 };
 
 export type FoodPost = {
@@ -22,6 +30,8 @@ export type FoodPost = {
   timestamp: string;
   claimed?: boolean;
   claimedBy?: string;
+  category: FoodCategory;
+  distance?: number; // Added for sorting/filtering
 };
 
 export type FoodCategory = "produce" | "bakery" | "prepared" | "dairy" | "other";
@@ -36,3 +46,15 @@ export type Notification = {
   relatedPostId?: string;
   type: "new_post" | "claim" | "expiry" | "system";
 };
+
+export type OnboardingStep = "role" | "name" | "location" | "preferences" | "complete";
+
+export interface RecommendedMatch {
+  charityId: string;
+  charityName: string;
+  score: number;
+  distance: number;
+  matchReason: string;
+}
+
+export type ThemeMode = "light" | "dark" | "system";
