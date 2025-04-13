@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -274,7 +273,7 @@ const FoodPostForm: React.FC<FoodPostFormProps> = ({ onSuccess }) => {
       </div>
 
       {possibleDuplicate && (
-        <Alert variant="warning">
+        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Possible duplicate post</AlertTitle>
           <AlertDescription>

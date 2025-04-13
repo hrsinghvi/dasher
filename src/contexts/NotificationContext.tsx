@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { Notification } from "../types";
 import { getNotificationsByUser, markNotificationAsRead, saveNotification } from "../utils/storage";
@@ -13,6 +12,7 @@ type NotificationContextType = {
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   refetchNotifications: () => void;
+  clearUserNotifications: () => void;
 };
 
 const NotificationContext = createContext<NotificationContextType>({
@@ -22,6 +22,7 @@ const NotificationContext = createContext<NotificationContextType>({
   markAsRead: () => {},
   markAllAsRead: () => {},
   refetchNotifications: () => {},
+  clearUserNotifications: () => {},
 });
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -87,6 +88,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     loadNotifications();
   };
 
+  const clearUserNotifications = () => {
+    setNotifications([]);
+  };
+
   return (
     <NotificationContext.Provider 
       value={{ 
@@ -95,7 +100,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         addNotification, 
         markAsRead, 
         markAllAsRead,
-        refetchNotifications: loadNotifications
+        refetchNotifications: loadNotifications,
+        clearUserNotifications
       }}
     >
       {children}
