@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,15 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+                food: {
+                    green: '#4CAF50',
+                    lightGreen: '#8BC34A',
+                    amber: '#FFC107',
+                    red: '#F44336',
+                    blue: '#2196F3',
+                    gray: '#9E9E9E'
+                }
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -84,11 +93,32 @@ export default {
 					to: {
 						height: '0'
 					}
-				}
+				},
+                'fade-in': {
+                    '0%': {
+                        opacity: '0',
+                        transform: 'translateY(10px)'
+                    },
+                    '100%': {
+                        opacity: '1',
+                        transform: 'translateY(0)'
+                    }
+                },
+                'slide-in-right': {
+                    '0%': { transform: 'translateX(100%)' },
+                    '100%': { transform: 'translateX(0)' }
+                },
+                'ping-slow': {
+                    '0%': { transform: 'scale(1)', opacity: '1' },
+                    '75%, 100%': { transform: 'scale(2)', opacity: '0' }
+                }
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+                'fade-in': 'fade-in 0.4s ease-out',
+                'slide-in-right': 'slide-in-right 0.4s ease-out',
+                'ping-slow': 'ping-slow 3s cubic-bezier(0, 0, 0.2, 1) infinite'
 			}
 		}
 	},
