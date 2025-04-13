@@ -10,10 +10,10 @@ import {
   Clock, 
   Settings, 
   LogOut, 
-  Bell, 
   Menu,
   X,
-  Utensils 
+  Utensils,
+  PlusCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -33,7 +33,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   if (!user) return null;
 
@@ -78,12 +78,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       icon: <Clock size={20} />,
       path: "/activity",
       visible: true
-    },
-    {
-      name: "Settings",
-      icon: <Settings size={20} />,
-      path: "/settings",
-      visible: true
     }
   ];
 
@@ -93,7 +87,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         <div className="bg-primary/10 p-2 rounded-full">
           <Utensils className="h-6 w-6 text-primary" />
         </div>
-        <h2 className="text-lg font-semibold">Food Share</h2>
+        <h2 className="text-lg font-semibold">Dasher</h2>
       </div>
       
       <Separator />
@@ -140,6 +134,17 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             variant="ghost"
             size="icon"
             className="h-8 w-8"
+            onClick={() => {
+              navigate('/settings');
+              setShowMobileMenu(false);
+            }}
+          >
+            <Settings size={18} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
             onClick={logout}
           >
             <LogOut size={18} />
@@ -175,35 +180,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               <div className="bg-primary/10 p-1 rounded-full">
                 <Utensils className="h-5 w-5 text-primary" />
               </div>
-              <span className="font-semibold">Food Share</span>
+              <span className="font-semibold">Dasher</span>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Sheet open={showNotifications} onOpenChange={setShowNotifications}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell size={20} />
-                  {unreadCount > 0 && (
-                    <Badge 
-                      className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center"
-                      variant="destructive"
-                    >
-                      {unreadCount}
-                    </Badge>
-                  )}
-                </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <NotificationPanel onClose={() => setShowNotifications(false)} />
-              </SheetContent>
-            </Sheet>
-            
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary/20 text-primary-foreground">
-                {getInitials(user.name)}
-              </AvatarFallback>
-            </Avatar>
           </div>
         </div>
         
@@ -213,36 +191,26 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             {navigationItems.find(item => isActive(item.path))?.name || "Dashboard"}
           </h1>
           
-          <div className="flex items-center gap-4">
-            <Sheet open={showNotifications} onOpenChange={setShowNotifications}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell size={20} />
-                  {unreadCount > 0 && (
-                    <Badge 
-                      className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center"
-                      variant="destructive"
-                    >
-                      {unreadCount}
-                    </Badge>
-                  )}
-                </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <NotificationPanel onClose={() => setShowNotifications(false)} />
-              </SheetContent>
-            </Sheet>
-            
-            <span className="text-sm text-muted-foreground hidden lg:inline-block">
-              Hello, {user.name}
-            </span>
-            
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary/20 text-primary-foreground">
-                {getInitials(user.name)}
-              </AvatarFallback>
-            </Avatar>
+          <div className="flex items-center">
+            <Button 
+              onClick={() => navigate(user.role === "business" ? "/my-posts" : "/available")}
+              className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-105"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              New Post
+            </Button>
           </div>
+        </div>
+        
+        {/* Mobile New Post Button (fixed at bottom) */}
+        <div className="md:hidden fixed bottom-6 right-6 z-10">
+          <Button 
+            onClick={() => navigate(user.role === "business" ? "/my-posts" : "/available")}
+            size="lg"
+            className="rounded-full shadow-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-105 h-14 w-14 p-0"
+          >
+            <PlusCircle className="h-6 w-6" />
+          </Button>
         </div>
         
         {/* Page Content */}

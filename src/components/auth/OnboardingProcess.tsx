@@ -66,17 +66,19 @@ const OnboardingProcess: React.FC = () => {
     if (step === "location") {
       if (allowLocation) {
         try {
+          // Fixed geolocation handling with timeout and proper error management
           const position = await getCurrentPosition();
           const { latitude, longitude } = position.coords;
           
           updateUser({
-            ...user,
+            ...user!,
             role: selectedRole as UserRole,
             name,
             location: { lat: latitude, lng: longitude },
             address: address,
           });
         } catch (error) {
+          console.error("Geolocation error:", error);
           toast({
             title: "Location error",
             description: "Couldn't access your location. Please try again or enter an address.",
@@ -95,7 +97,7 @@ const OnboardingProcess: React.FC = () => {
         // Mock location based on address
         // In a real app, you would use geocoding here
         updateUser({
-          ...user,
+          ...user!,
           role: selectedRole as UserRole,
           name,
           address,
@@ -106,7 +108,7 @@ const OnboardingProcess: React.FC = () => {
 
     if (step === "preferences") {
       updateUser({
-        ...user,
+        ...user!,
         role: selectedRole as UserRole,
         name,
         preferences: {
@@ -134,7 +136,27 @@ const OnboardingProcess: React.FC = () => {
       if (!navigator.geolocation) {
         reject(new Error("Geolocation is not supported by your browser"));
       } else {
-        navigator.geolocation.getCurrentPosition(resolve, reject);
+        // Add timeout to handle slow geolocation responses
+        const timeoutId = setTimeout(() => {
+          reject(new Error("Geolocation request timed out"));
+        }, 10000);
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            clearTimeout(timeoutId);
+            resolve(position);
+          },
+          (error) => {
+            clearTimeout(timeoutId);
+            console.error("Geolocation error:", error.message);
+            reject(error);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
       }
     });
   };
@@ -159,7 +181,7 @@ const OnboardingProcess: React.FC = () => {
       <Card className="w-full max-w-lg mx-auto">
         <CardHeader>
           <CardTitle>
-            {step === "role" && "Welcome to Food Share"}
+            {step === "role" && "Welcome to Dasher"}
             {step === "name" && "What's your name?"}
             {step === "location" && "Where are you located?"}
             {step === "preferences" && "Set your preferences"}
@@ -170,7 +192,7 @@ const OnboardingProcess: React.FC = () => {
             {step === "name" && "What should we call your organization?"}
             {step === "location" && "This helps us connect you with nearby partners"}
             {step === "preferences" && "These help us match you with relevant food items"}
-            {step === "complete" && "You're ready to start using Food Share"}
+            {step === "complete" && "You're ready to start using Dasher"}
           </CardDescription>
         </CardHeader>
         
@@ -327,7 +349,7 @@ const OnboardingProcess: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>
               </div>
               <h3 className="text-lg font-medium">Onboarding Complete!</h3>
-              <p className="text-muted-foreground mt-2">You're all set to start using Food Share</p>
+              <p className="text-muted-foreground mt-2">You're all set to start using Dasher</p>
             </div>
           )}
         </CardContent>

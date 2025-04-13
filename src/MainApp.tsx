@@ -13,7 +13,7 @@ const MainApp: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-pulse">Loading...</div>
+        <div className="animate-pulse">Loading Dasher...</div>
       </div>
     );
   }
