@@ -1,13 +1,14 @@
 
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { User } from "../types";
-import { getCurrentUser, setCurrentUser, clearCurrentUser } from "../utils/storage";
+import { getCurrentUser, setCurrentUser, clearCurrentUser, saveUser } from "../utils/storage";
 
 type UserContextType = {
   user: User | null;
   isLoading: boolean;
   login: (user: User) => void;
   logout: () => void;
+  updateUser: (updatedUser: User) => void;
 };
 
 const UserContext = createContext<UserContextType>({
@@ -15,6 +16,7 @@ const UserContext = createContext<UserContextType>({
   isLoading: true,
   login: () => {},
   logout: () => {},
+  updateUser: () => {},
 });
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -41,8 +43,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const updateUser = (updatedUser: User) => {
+    saveUser(updatedUser);
+    setUser(updatedUser);
+  };
+
   return (
-    <UserContext.Provider value={{ user, isLoading, login, logout }}>
+    <UserContext.Provider value={{ user, isLoading, login, logout, updateUser }}>
       {children}
     </UserContext.Provider>
   );

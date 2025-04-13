@@ -22,7 +22,7 @@ const OnboardingProcess: React.FC = () => {
   const [allowLocation, setAllowLocation] = useState(false);
   const [address, setAddress] = useState(user?.address || "");
   const [maxDistance, setMaxDistance] = useState(user?.preferences?.maxDistance || 10);
-  const [notificationEnabled, setNotificationEnabled] = useState(user?.preferences?.notificationEnabled || true);
+  const [notificationEnabled, setNotificationEnabled] = useState(user?.preferences?.notificationEnabled !== false);
   const [selectedCategories, setSelectedCategories] = useState<FoodCategory[]>(
     user?.preferences?.foodCategories || []
   );
@@ -127,7 +127,6 @@ const OnboardingProcess: React.FC = () => {
     if (step === "role") setStep("name");
     else if (step === "name") setStep("location");
     else if (step === "location") setStep("preferences");
-    else if (step === "preferences") setStep("complete");
   };
 
   const getCurrentPosition = (): Promise<GeolocationPosition> => {

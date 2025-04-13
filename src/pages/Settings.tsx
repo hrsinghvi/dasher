@@ -95,7 +95,7 @@ const Settings = () => {
   };
   
   const handleClearNotifications = () => {
-    clearUserNotifications(user.id);
+    clearUserNotifications();
     toast({
       title: "Notifications cleared",
       description: "All your notifications have been cleared"

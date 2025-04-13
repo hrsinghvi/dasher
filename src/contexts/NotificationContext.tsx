@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { Notification } from "../types";
 import { getNotificationsByUser, markNotificationAsRead, saveNotification } from "../utils/storage";
@@ -89,7 +90,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const clearUserNotifications = () => {
-    setNotifications([]);
+    if (user) {
+      setNotifications([]);
+      // In a real app, we would clear notifications from storage here
+    }
   };
 
   return (
