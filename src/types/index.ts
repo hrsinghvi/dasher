@@ -1,3 +1,4 @@
+
 export type UserRole = "business" | "charity";
 
 export interface User {
@@ -12,6 +13,7 @@ export interface User {
   };
   address?: string;
   onboardingCompleted?: boolean;
+  reliability?: number; // Added reliability property
   preferences?: {
     foodCategories?: FoodCategory[];
     maxDistance?: number;
