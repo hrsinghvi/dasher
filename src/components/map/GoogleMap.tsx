@@ -55,7 +55,7 @@ const GoogleMap: React.FC<GoogleMapProps> = ({ posts, onSelectPost }) => {
     
     // Add user marker
     const userIcon = {
-      path: google.maps.SymbolPath.CIRCLE,
+      path: 0, // Using numeric value 0 instead of enum CIRCLE
       fillColor: user.role === "business" ? "#34d399" : "#3b82f6",
       fillOpacity: 1,
       strokeWeight: 2,
@@ -86,7 +86,7 @@ const GoogleMap: React.FC<GoogleMapProps> = ({ posts, onSelectPost }) => {
         map: map,
         title: post.foodName,
         icon: {
-          path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+          path: 3, // Using numeric value 3 instead of enum BACKWARD_CLOSED_ARROW
           fillColor: "#f97316",
           fillOpacity: 1,
           strokeWeight: 2,

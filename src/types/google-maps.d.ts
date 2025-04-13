@@ -110,14 +110,14 @@ declare namespace google {
       stylers: any[];
     }
 
-    const enum MapTypeId {
+    enum MapTypeId {
       ROADMAP = "roadmap",
       SATELLITE = "satellite",
       HYBRID = "hybrid",
       TERRAIN = "terrain"
     }
 
-    const enum SymbolPath {
+    enum SymbolPath {
       CIRCLE = 0,
       FORWARD_CLOSED_ARROW = 1,
       FORWARD_OPEN_ARROW = 2,
