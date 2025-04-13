@@ -15,6 +15,9 @@ import MyPosts from "./pages/MyPosts";
 import AvailableFood from "./pages/AvailableFood";
 import Activity from "./pages/Activity";
 import Settings from "./pages/Settings";
+import LandingPage from "./pages/LandingPage";
+import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +44,9 @@ const App = () => {
                   <Route path="activity" element={<Activity />} />
                   <Route path="settings" element={<Settings />} />
                 </Route>
+                <Route path="/landing" element={<LandingPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

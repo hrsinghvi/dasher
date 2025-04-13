@@ -1,3 +1,4 @@
+
 import { User, FoodPost, Notification } from "../types";
 import { v4 as uuidv4 } from "@/utils/uuid";
 
@@ -35,6 +36,11 @@ export function getUsers(): User[] {
 export function getUserById(userId: string): User | undefined {
   const users = getUsers();
   return users.find((user) => user.id === userId);
+}
+
+export function getUserByEmail(email: string): User | undefined {
+  const users = getUsers();
+  return users.find((user) => user.email === email);
 }
 
 export function setCurrentUser(userId: string): void {

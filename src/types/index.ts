@@ -1,21 +1,24 @@
-
 export type UserRole = "business" | "charity";
 
-export type User = {
+export interface User {
   id: string;
   name: string;
-  role: UserRole;
-  location: { lat: number; lng: number };
+  email?: string;
+  password?: string;
+  role?: UserRole;
+  location: {
+    lat: number;
+    lng: number;
+  };
   address?: string;
   onboardingCompleted?: boolean;
   preferences?: {
     foodCategories?: FoodCategory[];
     maxDistance?: number;
     notificationEnabled?: boolean;
-    categoryPreferences?: Record<FoodCategory, number>; // 1-5 rating
+    categoryPreferences?: Record<FoodCategory, number>;
   };
-  reliability?: number; // 0-100 score based on pickup reliability
-};
+}
 
 export type FoodPost = {
   id: string;

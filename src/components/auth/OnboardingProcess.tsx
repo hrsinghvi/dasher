@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,11 +12,25 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { FoodCategory, OnboardingStep, UserRole } from "@/types";
 import { Building2, Building, MapPin } from "lucide-react";
+import { calculateDistance } from "@/utils/geo";
+
+// Load Google Maps API script
+const loadGoogleMapsScript = () => {
+  const googleMapsApiKey = "AIzaSyBnOkQE4NWJlU1hvwjWl7v_-lPt8s4pj_4"; // This is just a placeholder for demo purposes
+  const script = document.createElement("script");
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`;
+  script.async = true;
+  script.defer = true;
+  document.head.appendChild(script);
+  return new Promise((resolve) => {
+    script.onload = resolve;
+  });
+};
 
 const OnboardingProcess: React.FC = () => {
   const { user, updateUser } = useUser();
   const { toast } = useToast();
-  const [step, setStep] = useState<OnboardingStep>("role");
+  const [step, setStep] = useState<OnboardingStep>("location");
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(user?.role || null);
   const [name, setName] = useState(user?.name || "");
   const [allowLocation, setAllowLocation] = useState(false);
@@ -35,6 +49,8 @@ const OnboardingProcess: React.FC = () => {
       other: 3
     }
   );
+  const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   
   const foodCategories: { value: FoodCategory; label: string }[] = [
     { value: "produce", label: "Fresh Produce" },
@@ -44,64 +60,84 @@ const OnboardingProcess: React.FC = () => {
     { value: "other", label: "Other Items" }
   ];
 
+  // Load Google Maps API on component mount
+  useEffect(() => {
+    const loadMaps = async () => {
+      try {
+        await loadGoogleMapsScript();
+        setGoogleMapsLoaded(true);
+      } catch (error) {
+        console.error("Failed to load Google Maps:", error);
+      }
+    };
+    
+    loadMaps();
+  }, []);
+
+  // Initialize the Google Places Autocomplete when the input is available
+  useEffect(() => {
+    if (googleMapsLoaded && step === "location" && !allowLocation) {
+      const addressInput = document.getElementById("address") as HTMLInputElement;
+      if (!addressInput) return;
+
+      const autocomplete = new google.maps.places.Autocomplete(addressInput, {
+        types: ["address"],
+      });
+
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry) {
+          console.error("No geometry available for this place");
+          return;
+        }
+
+        const lat = place.geometry.location?.lat();
+        const lng = place.geometry.location?.lng();
+        if (lat && lng) {
+          setAddress(place.formatted_address || "");
+          // We'll use this location when submitting
+        }
+      });
+    }
+  }, [googleMapsLoaded, step, allowLocation]);
+
   const handleNext = async () => {
-    if (step === "role" && !selectedRole) {
-      toast({
-        title: "Please select a role",
-        description: "Choose whether you're a food business or charity",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (step === "name" && !name.trim()) {
-      toast({
-        title: "Please enter a name",
-        description: "Provide a name for your organization",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (step === "location") {
       if (allowLocation) {
         try {
-          // Fixed geolocation handling with timeout and proper error management
+          // Improved geolocation handling
           const position = await getCurrentPosition();
           const { latitude, longitude } = position.coords;
           
+          // We already have name and role from signup
           updateUser({
             ...user!,
-            role: selectedRole as UserRole,
-            name,
             location: { lat: latitude, lng: longitude },
-            address: address,
+            address: "Current Location",
           });
+          
+          setLocationError(null);
         } catch (error) {
           console.error("Geolocation error:", error);
-          toast({
-            title: "Location error",
-            description: "Couldn't access your location. Please try again or enter an address.",
-            variant: "destructive",
-          });
+          setLocationError("Couldn't access your location. Please try again or enter an address.");
           return;
         }
       } else if (!address.trim()) {
         toast({
           title: "Address required",
-          description: "Please enter your address if you don't want to share your location",
+          description: "Please enter your address or enable location sharing",
           variant: "destructive",
         });
         return;
       } else {
-        // Mock location based on address
-        // In a real app, you would use geocoding here
+        // For simplicity, we'll use a mock geocoding function
+        // In a real app, you would use Google's Geocoding API
+        const mockLocation = mockGeocodeAddress(address);
+        
         updateUser({
           ...user!,
-          role: selectedRole as UserRole,
-          name,
           address,
-          location: { lat: 40.7128, lng: -74.0060 }, // Example coordinates (NYC)
+          location: mockLocation,
         });
       }
     }
@@ -109,8 +145,6 @@ const OnboardingProcess: React.FC = () => {
     if (step === "preferences") {
       updateUser({
         ...user!,
-        role: selectedRole as UserRole,
-        name,
         preferences: {
           ...user?.preferences,
           foodCategories: selectedCategories,
@@ -126,9 +160,7 @@ const OnboardingProcess: React.FC = () => {
     }
 
     // Move to next step
-    if (step === "role") setStep("name");
-    else if (step === "name") setStep("location");
-    else if (step === "location") setStep("preferences");
+    if (step === "location") setStep("preferences");
   };
 
   const getCurrentPosition = (): Promise<GeolocationPosition> => {
@@ -161,6 +193,19 @@ const OnboardingProcess: React.FC = () => {
     });
   };
 
+  // Mock geocoding function - in a real app, use Google Maps Geocoding API
+  const mockGeocodeAddress = (address: string) => {
+    // Generate a somewhat realistic location based on the address string
+    // This is just for demo purposes
+    const hash = address.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    
+    // Use the hash to generate latitude and longitude in a realistic range
+    const lat = 37.7749 + (hash % 10) / 100;
+    const lng = -122.4194 + (hash % 20) / 100;
+    
+    return { lat, lng };
+  };
+
   const handleCategoryRatingChange = (category: FoodCategory, value: number[]) => {
     setCategoryRatings(prev => ({
       ...prev,
@@ -181,15 +226,11 @@ const OnboardingProcess: React.FC = () => {
       <Card className="w-full max-w-lg mx-auto">
         <CardHeader>
           <CardTitle>
-            {step === "role" && "Welcome to Dasher"}
-            {step === "name" && "What's your name?"}
             {step === "location" && "Where are you located?"}
             {step === "preferences" && "Set your preferences"}
             {step === "complete" && "All set!"}
           </CardTitle>
           <CardDescription>
-            {step === "role" && "Let's start by setting up your account"}
-            {step === "name" && "What should we call your organization?"}
             {step === "location" && "This helps us connect you with nearby partners"}
             {step === "preferences" && "These help us match you with relevant food items"}
             {step === "complete" && "You're ready to start using Dasher"}
@@ -197,53 +238,6 @@ const OnboardingProcess: React.FC = () => {
         </CardHeader>
         
         <CardContent>
-          {step === "role" && (
-            <div className="grid gap-6">
-              <Label>I am a:</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div 
-                  className={`border rounded-lg p-4 cursor-pointer text-center transition-colors ${
-                    selectedRole === "business" 
-                      ? "border-primary bg-primary/10" 
-                      : "border-border hover:border-primary/50"
-                  }`}
-                  onClick={() => setSelectedRole("business")}
-                >
-                  <Building className="h-10 w-10 mb-2 mx-auto" />
-                  <p className="font-medium">Food Business</p>
-                  <p className="text-sm text-muted-foreground">Restaurant, cafe, grocery...</p>
-                </div>
-                
-                <div 
-                  className={`border rounded-lg p-4 cursor-pointer text-center transition-colors ${
-                    selectedRole === "charity" 
-                      ? "border-primary bg-primary/10" 
-                      : "border-border hover:border-primary/50"
-                  }`}
-                  onClick={() => setSelectedRole("charity")}
-                >
-                  <Building2 className="h-10 w-10 mb-2 mx-auto" />
-                  <p className="font-medium">Charity</p>
-                  <p className="text-sm text-muted-foreground">Food bank, shelter, community fridge...</p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {step === "name" && (
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Organization Name</Label>
-                <Input 
-                  id="name" 
-                  placeholder="Enter your organization name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-          
           {step === "location" && (
             <div className="grid gap-6">
               <div className="flex items-center space-x-2">
@@ -255,6 +249,12 @@ const OnboardingProcess: React.FC = () => {
                 <Label htmlFor="location">Use my current location</Label>
               </div>
               
+              {locationError && (
+                <div className="text-red-500 text-sm p-2 rounded bg-red-100 dark:bg-red-900/20">
+                  {locationError}
+                </div>
+              )}
+              
               <div className="grid gap-2">
                 <Label htmlFor="address">Address</Label>
                 <Input 
@@ -264,6 +264,9 @@ const OnboardingProcess: React.FC = () => {
                   onChange={(e) => setAddress(e.target.value)}
                   disabled={allowLocation}
                 />
+                <div className="text-xs text-muted-foreground">
+                  Start typing and select from the dropdown for best results
+                </div>
               </div>
               
               <div className="flex items-center text-sm text-muted-foreground">
@@ -275,7 +278,7 @@ const OnboardingProcess: React.FC = () => {
           
           {step === "preferences" && (
             <div className="grid gap-6">
-              {selectedRole === "charity" && (
+              {user?.role === "charity" && (
                 <>
                   <div className="grid gap-2">
                     <Label>Food Categories You Accept</Label>
@@ -336,7 +339,7 @@ const OnboardingProcess: React.FC = () => {
                 <Switch 
                   id="notifications" 
                   checked={notificationEnabled}
-                  onCheckedChange={setNotificationEnabled}
+                  onCheckedChange={(checked: boolean) => setNotificationEnabled(checked)}
                 />
                 <Label htmlFor="notifications">Enable notifications</Label>
               </div>
@@ -355,13 +358,11 @@ const OnboardingProcess: React.FC = () => {
         </CardContent>
         
         <CardFooter className="flex justify-between">
-          {step !== "role" && step !== "complete" && (
+          {step !== "location" && step !== "complete" && (
             <Button 
               variant="outline" 
               onClick={() => {
-                if (step === "name") setStep("role");
-                else if (step === "location") setStep("name");
-                else if (step === "preferences") setStep("location");
+                if (step === "preferences") setStep("location");
               }}
             >
               Back
@@ -370,7 +371,7 @@ const OnboardingProcess: React.FC = () => {
           
           {step !== "complete" ? (
             <Button 
-              className={step === "role" ? "w-full" : ""} 
+              className={step === "location" ? "w-full" : ""} 
               onClick={handleNext}
             >
               {step === "preferences" ? "Complete Setup" : "Continue"}

@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Outlet, Navigate } from "react-router-dom";
+import { Outlet, Navigate, useLocation } from "react-router-dom";
 import { useUser } from "./contexts/UserContext";
 import LoginScreen from "./components/auth/LoginScreen";
 import AppLayout from "./components/layout/AppLayout";
@@ -8,6 +8,7 @@ import OnboardingProcess from "./components/auth/OnboardingProcess";
 
 const MainApp: React.FC = () => {
   const { user, isLoading } = useUser();
+  const location = useLocation();
 
   // Show loading state if we're still checking for a logged-in user
   if (isLoading) {
@@ -18,9 +19,17 @@ const MainApp: React.FC = () => {
     );
   }
 
-  // If no user is logged in, show the login screen
+  // If no user is logged in, redirect to landing page
   if (!user) {
-    return <LoginScreen />;
+    // Check if we're already on landing, login, or signup
+    if (
+      location.pathname === "/landing" ||
+      location.pathname === "/login" ||
+      location.pathname === "/signup"
+    ) {
+      return <Navigate to="/landing" />;
+    }
+    return <Navigate to="/landing" />;
   }
 
   // If user hasn't completed onboarding, show the onboarding process
