@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { getFoodPosts } from "@/utils/storage";
 import { FoodPost, FoodCategory } from "@/types";
 import FoodPostCard from "@/components/food/FoodPostCard";
 import { calculateDistance } from "@/utils/geo";
+import { toast } from "@/components/ui/use-toast";
 
 const AvailableFood: React.FC = () => {
   const { user } = useUser();
@@ -25,15 +25,25 @@ const AvailableFood: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Get all food posts
+    // Get all available food posts and calculate distances
     const allPosts = getFoodPosts()
-      .filter(post => !post.claimed && new Date(post.expiresAt) > new Date())
+      .filter(post => {
+        const now = new Date();
+        const expiryDate = new Date(post.expiresAt);
+        return !post.claimed && expiryDate > now;
+      })
       .map(post => ({
         ...post,
         distance: calculateDistance(user.location, post.location)
       }));
       
     setPosts(allPosts);
+
+    // Show toast with available items
+    toast({
+      title: "Food Items Available",
+      description: `📦 ${allPosts.length} food items available in your area`
+    });
   }, [user, refreshTrigger]);
 
   useEffect(() => {
@@ -47,7 +57,8 @@ const AvailableFood: React.FC = () => {
       filtered = filtered.filter(post => 
         post.foodName.toLowerCase().includes(term) ||
         post.businessName.toLowerCase().includes(term) ||
-        (post.description && post.description.toLowerCase().includes(term))
+        post.description?.toLowerCase().includes(term) ||
+        post.category.toLowerCase().includes(term)
       );
     }
 
@@ -57,17 +68,18 @@ const AvailableFood: React.FC = () => {
     }
 
     // Apply sorting
-    switch (sortBy) {
-      case "distance":
-        filtered.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-        break;
-      case "expiry":
-        filtered.sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime());
-        break;
-      case "recent":
-        filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        break;
-    }
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "distance":
+          return (a.distance || 0) - (b.distance || 0);
+        case "expiry":
+          return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime();
+        case "recent":
+          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        default:
+          return 0;
+      }
+    });
 
     setFilteredPosts(filtered);
   }, [posts, searchTerm, sortBy, selectedCategory]);

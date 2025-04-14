@@ -1,31 +1,17 @@
-
 import React, { useState, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { FoodCategory, OnboardingStep, UserRole } from "@/types";
 import { Building2, Building, MapPin } from "lucide-react";
-import { calculateDistance } from "@/utils/geo";
+import { calculateDistance, getAddressFromCoordinates } from "@/utils/geo";
 
 // Load Google Maps API script
-const loadGoogleMapsScript = () => {
-  const googleMapsApiKey = "AIzaSyBnOkQE4NWJlU1hvwjWl7v_-lPt8s4pj_4"; // This is just a placeholder for demo purposes
-  const script = document.createElement("script");
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`;
-  script.async = true;
-  script.defer = true;
-  document.head.appendChild(script);
-  return new Promise((resolve) => {
-    script.onload = resolve;
-  });
-};
 
 const OnboardingProcess: React.FC = () => {
   const { user, updateUser } = useUser();
@@ -49,9 +35,8 @@ const OnboardingProcess: React.FC = () => {
       other: 3
     }
   );
-  const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  
+
   const foodCategories: { value: FoodCategory; label: string }[] = [
     { value: "produce", label: "Fresh Produce" },
     { value: "bakery", label: "Bakery Items" },
@@ -60,56 +45,65 @@ const OnboardingProcess: React.FC = () => {
     { value: "other", label: "Other Items" }
   ];
 
-  // Load Google Maps API on component mount
-  useEffect(() => {
-    const loadMaps = async () => {
-      try {
-        await loadGoogleMapsScript();
-        setGoogleMapsLoaded(true);
-      } catch (error) {
-        console.error("Failed to load Google Maps:", error);
+  // Single consolidated geolocation function
+  const getLocation = async (): Promise<GeolocationPosition> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation is not supported by your browser"));
+        return;
       }
-    };
-    
-    loadMaps();
-  }, []);
 
-  // Initialize the Google Places Autocomplete when the input is available
+      const timeoutId = setTimeout(() => {
+        reject(new Error("Geolocation request timed out"));
+      }, 10000);
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          clearTimeout(timeoutId);
+          resolve(position);
+        },
+        (error) => {
+          clearTimeout(timeoutId);
+          console.error("Geolocation error:", error.message);
+          reject(error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    });
+  };
+
+  // Effect to handle location permissions
   useEffect(() => {
-    if (googleMapsLoaded && step === "location" && !allowLocation) {
-      const addressInput = document.getElementById("address") as HTMLInputElement;
-      if (!addressInput) return;
-
-      const autocomplete = new google.maps.places.Autocomplete(addressInput, {
-        types: ["address"],
-      });
-
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (!place.geometry) {
-          console.error("No geometry available for this place");
-          return;
+    if (allowLocation) {
+      getLocation().then(async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const userAddress = await getAddressFromCoordinates({ lat: latitude, lng: longitude });
+          setAddress(userAddress);
+          setLocationError(null);
+        } catch (error) {
+          console.error("Error getting address:", error);
+          setLocationError("Couldn't get your address. Please enter it manually.");
         }
-
-        const lat = place.geometry.location?.lat();
-        const lng = place.geometry.location?.lng();
-        if (lat && lng) {
-          setAddress(place.formatted_address || "");
-          // We'll use this location when submitting
-        }
+      }).catch((error) => {
+        console.error("Geolocation error:", error);
+        setLocationError("Couldn't access your location. Please enter your address manually.");
+        setAllowLocation(false); // Disable the switch if location access fails
       });
     }
-  }, [googleMapsLoaded, step, allowLocation]);
+  }, [allowLocation]);
 
   const handleNext = async () => {
     if (step === "location") {
       if (allowLocation) {
         try {
-          // Improved geolocation handling
-          const position = await getCurrentPosition();
+          const position = await getLocation();
           const { latitude, longitude } = position.coords;
           
-          // We already have name and role from signup
           updateUser({
             ...user!,
             location: { lat: latitude, lng: longitude },
@@ -129,16 +123,6 @@ const OnboardingProcess: React.FC = () => {
           variant: "destructive",
         });
         return;
-      } else {
-        // For simplicity, we'll use a mock geocoding function
-        // In a real app, you would use Google's Geocoding API
-        const mockLocation = mockGeocodeAddress(address);
-        
-        updateUser({
-          ...user!,
-          address,
-          location: mockLocation,
-        });
       }
     }
 
@@ -163,47 +147,31 @@ const OnboardingProcess: React.FC = () => {
     if (step === "location") setStep("preferences");
   };
 
-  const getCurrentPosition = (): Promise<GeolocationPosition> => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error("Geolocation is not supported by your browser"));
-      } else {
-        // Add timeout to handle slow geolocation responses
-        const timeoutId = setTimeout(() => {
-          reject(new Error("Geolocation request timed out"));
-        }, 10000);
-
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            clearTimeout(timeoutId);
-            resolve(position);
-          },
-          (error) => {
-            clearTimeout(timeoutId);
-            console.error("Geolocation error:", error.message);
-            reject(error);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          }
-        );
-      }
-    });
-  };
-
-  // Mock geocoding function - in a real app, use Google Maps Geocoding API
-  const mockGeocodeAddress = (address: string) => {
-    // Generate a somewhat realistic location based on the address string
-    // This is just for demo purposes
-    const hash = address.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    
-    // Use the hash to generate latitude and longitude in a realistic range
-    const lat = 37.7749 + (hash % 10) / 100;
-    const lng = -122.4194 + (hash % 20) / 100;
-    
-    return { lat, lng };
+  const handleLocationSelect = async () => {
+    try {
+      const position = await getLocation();
+      const { latitude, longitude } = position.coords;
+      
+      // Update user with real coordinates
+      updateUser({
+        ...user!,
+        location: {
+          lat: latitude,
+          lng: longitude
+        },
+        address: "Current Location"
+      });
+      
+      setLocationError(null);
+      setStep("preferences");
+    } catch (error) {
+      console.error("Error getting location:", error);
+      toast({
+        title: "Location Error",
+        description: "Could not get your location. Please make sure location services are enabled.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleCategoryRatingChange = (category: FoodCategory, value: number[]) => {
@@ -233,7 +201,7 @@ const OnboardingProcess: React.FC = () => {
           <CardDescription>
             {step === "location" && "This helps us connect you with nearby partners"}
             {step === "preferences" && "These help us match you with relevant food items"}
-            {step === "complete" && "You're ready to start using Dasher"}
+            {step === "complete" && "You're ready to start using dasher"}
           </CardDescription>
         </CardHeader>
         
@@ -352,7 +320,7 @@ const OnboardingProcess: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>
               </div>
               <h3 className="text-lg font-medium">Onboarding Complete!</h3>
-              <p className="text-muted-foreground mt-2">You're all set to start using Dasher</p>
+              <p className="text-muted-foreground mt-2">You're all set to start using dasher</p>
             </div>
           )}
         </CardContent>

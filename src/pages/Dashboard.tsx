@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,9 +16,11 @@ import {
 } from "lucide-react";
 import FoodPostForm from "@/components/food/FoodPostForm";
 import FoodPostCard from "@/components/food/FoodPostCard";
+import LeafletMap from "@/components/map/LeafletMap";
 import SimpleMapView from "@/components/map/SimpleMapView";
 import { FoodPost } from "@/types";
 import { getFoodPosts, getFoodPostsByBusiness, deleteFoodPost } from "@/utils/storage";
+import { calculateDistance } from "@/utils/geo";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -36,14 +37,23 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Get all food posts
-    const allPosts = getFoodPosts().filter(post => !post.claimed && new Date(post.expiresAt) > new Date());
-    setPosts(allPosts);
+    // Get all available food posts
+    const allPosts = getFoodPosts();
+    const availablePosts = allPosts.filter(post => {
+      const now = new Date();
+      const expiryDate = new Date(post.expiresAt);
+      return !post.claimed && expiryDate > now;
+    });
+    setPosts(availablePosts);
 
     // If user is a business, get their posts
     if (user.role === "business") {
       const businessPosts = getFoodPostsByBusiness(user.id);
       setMyPosts(businessPosts);
+    } else if (user.role === "charity") {
+      // For charities, get their claimed posts
+      const claimedPosts = allPosts.filter(post => post.claimed && post.claimedBy === user.id);
+      setMyPosts(claimedPosts);
     }
   }, [user, refreshKey]);
 
@@ -60,6 +70,32 @@ const Dashboard: React.FC = () => {
   const handlePostSuccess = () => {
     setIsPostDialogOpen(false);
     setRefreshKey(prevKey => prevKey + 1);
+  };
+
+  const getStatusCount = (type: 'Available' | 'Reserved' | 'Completed'): number => {
+    return posts.filter(post => {
+      const now = new Date();
+      const expiryDate = new Date(post.expiresAt);
+      switch (type) {
+        case 'Available':
+          return !post.claimed && expiryDate > now;
+        case 'Reserved':
+          return post.claimed;
+        case 'Completed':
+          return expiryDate <= now;
+      }
+    }).length;
+  };
+
+  const getNearbyLocationsCount = (): number => {
+    if (!user) return 0;
+    const maxDistance = user.preferences?.maxDistance || 10; // Default 10km radius
+    
+    return posts.filter(post => {
+      if (user.role === "business" && post.businessId === user.id) return false;
+      const distance = calculateDistance(user.location, post.location);
+      return distance <= maxDistance;
+    }).length;
   };
 
   if (!user) return null;
@@ -83,13 +119,13 @@ const Dashboard: React.FC = () => {
               {user.role === "business" && (
                 <Button 
                   onClick={() => setIsPostDialogOpen(true)}
-                  className="md:w-auto w-full gap-2"
+                  className="md:w-auto w-full gap-2 bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700"
                 >
                   <Plus className="h-4 w-4" /> 
                   Post Food
                 </Button>
               )}
-              
+
               {user.role === "charity" && (
                 <Button 
                   onClick={() => navigate("/map")}
@@ -200,10 +236,13 @@ const Dashboard: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4">
-              <SimpleMapView 
-                posts={posts.filter(post => post.businessId !== user.id)} 
-                onOpenDetails={(post) => navigate(`/food/${post.id}`)}
-              />
+              <div className="h-[400px] w-full">
+                <LeafletMap 
+                  posts={posts.filter(post => post.businessId !== user.id)}
+                  className="h-full w-full rounded-lg"
+                  filterStatus={["Available"]}
+                />
+              </div>
             </CardContent>
           </Card>
           
@@ -222,8 +261,7 @@ const Dashboard: React.FC = () => {
                     <ShoppingBag className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-40" />
                     <p className="text-muted-foreground">You haven't posted any food yet</p>
                     <Button 
-                      variant="outline"
-                      className="mt-4"
+                      className="mt-4 bg-green-500 hover:bg-green-600"
                       onClick={() => setIsPostDialogOpen(true)}
                     >
                       Post Food Now
@@ -318,8 +356,7 @@ const Dashboard: React.FC = () => {
                 {user.role === "business" ? (
                   <>
                     <Button 
-                      variant="outline" 
-                      className="w-full justify-start gap-2" 
+                      className="w-full justify-start gap-2 bg-green-500 hover:bg-green-600" 
                       onClick={() => setIsPostDialogOpen(true)}
                     >
                       <Plus className="h-4 w-4" /> Post New Food

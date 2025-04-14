@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -82,6 +83,71 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 142 69% 58%;
+  }
+
+  /* Map Styles */
+  .leaflet-popup-content-wrapper {
+    @apply rounded-lg shadow-lg border border-border bg-background p-0;
+  }
+
+  .leaflet-popup-content {
+    @apply m-0 !important;
+  }
+
+  .leaflet-popup-tip {
+    @apply bg-background border border-border;
+  }
+
+  .leaflet-popup-close-button {
+    @apply hover:bg-accent transition-colors rounded-full;
+  }
+
+  /* Marker pulse animation */
+  .map-marker-pulse {
+    @apply w-4 h-4 bg-primary rounded-full relative;
+    animation: map-marker-pulse 2s ease-out infinite;
+  }
+
+  @keyframes map-marker-pulse {
+    0% {
+      transform: scale(0.95);
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0.7);
+    }
+    
+    70% {
+      transform: scale(1);
+      box-shadow: 0 0 0 10px hsl(var(--primary) / 0);
+    }
+    
+    100% {
+      transform: scale(0.95);
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    }
+  }
+
+  /* Filter hover effects */
+  .checkbox-hover {
+    @apply transition-colors duration-200;
+  }
+
+  .checkbox-hover:hover {
+    @apply bg-primary/5;
+  }
+
+  /* Loading spinner */
+  .map-loading-spinner {
+    @apply border-4 border-primary/30 border-t-primary rounded-full w-8 h-8;
+    animation: map-spinner 0.6s linear infinite;
+  }
+
+  @keyframes map-spinner {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  html {
+    font-family: 'Manrope', sans-serif;
   }
 }
 

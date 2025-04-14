@@ -1,5 +1,4 @@
-
-import { User, FoodPost, Notification } from "../types";
+import { User, FoodPost, Notification, UserRole, FoodCategory } from "../types";
 import { v4 as uuidv4 } from "@/utils/uuid";
 
 // Storage keys
@@ -156,4 +155,230 @@ export function clearAll(): void {
   localStorage.removeItem(CURRENT_USER_KEY);
   localStorage.removeItem(FOOD_POSTS_KEY);
   localStorage.removeItem(NOTIFICATIONS_KEY);
+}
+
+// Demo data initialization
+export function initializeDemoData() {
+  // Clear existing data first
+  localStorage.clear();
+
+  // Sample business locations around San Francisco
+  const sampleBusinesses = [
+    {
+      id: "b1",
+      name: "Green Spoon Café",
+      role: "business" as UserRole,
+      location: { lat: 37.7749, lng: -122.4194 },
+      address: "123 Market St, San Francisco, CA",
+      email: "greenspoon@example.com",
+      preferences: { notificationEnabled: true }
+    },
+    {
+      id: "b2",
+      name: "Urban Harvest Market",
+      role: "business" as UserRole,
+      location: { lat: 37.7858, lng: -122.4319 },
+      address: "456 Hayes St, San Francisco, CA",
+      email: "urbanharvest@example.com",
+      preferences: { notificationEnabled: true }
+    },
+    {
+      id: "b3",
+      name: "FreshMart Groceries",
+      role: "business" as UserRole,
+      location: { lat: 37.7599, lng: -122.4148 },
+      address: "789 Mission St, San Francisco, CA",
+      email: "freshmart@example.com",
+      preferences: { notificationEnabled: true }
+    },
+    {
+      id: "b4",
+      name: "Bay Bakery",
+      role: "business" as UserRole,
+      location: { lat: 37.7982, lng: -122.4071 },
+      address: "101 Columbus Ave, San Francisco, CA",
+      email: "baybakery@example.com",
+      preferences: { notificationEnabled: true }
+    },
+    {
+      id: "b5",
+      name: "Mission Community Kitchen",
+      role: "business" as UserRole,
+      location: { lat: 37.7639, lng: -122.4089 },
+      address: "2000 Mission St, San Francisco, CA",
+      email: "missionkitchen@example.com",
+      preferences: { notificationEnabled: true }
+    }
+  ];
+
+  // Sample charities
+  const sampleCharities = [
+    {
+      id: "c1",
+      name: "SF Food Bank",
+      role: "charity" as UserRole,
+      location: { lat: 37.7505, lng: -122.4103 },
+      address: "900 Pennsylvania Ave, San Francisco, CA",
+      email: "sffoodbank@example.com",
+      preferences: { 
+        notificationEnabled: true,
+        foodCategories: ["produce", "bakery", "prepared", "dairy"],
+        maxDistance: 10
+      }
+    }
+  ];
+
+  // Save sample businesses and charities
+  [...sampleBusinesses, ...sampleCharities].forEach(user => saveUser(user));
+
+  // Create sample food posts
+  const samplePosts = [
+    {
+      id: "p1",
+      businessId: "b1",
+      businessName: "Green Spoon Café",
+      foodName: "Hot Soup & Sandwiches",
+      category: "prepared" as FoodCategory,
+      quantity: "15 portions",
+      description: "Vegetable soup and assorted sandwiches from lunch service",
+      location: sampleBusinesses[0].location,
+      address: sampleBusinesses[0].address,
+      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+      claimed: false
+    },
+    {
+      id: "p2",
+      businessId: "b2",
+      businessName: "Urban Harvest Market",
+      foodName: "Fresh Produce Box",
+      category: "produce" as FoodCategory,
+      quantity: "10 boxes",
+      description: "Mixed vegetables and fruits including seasonal items",
+      location: sampleBusinesses[1].location,
+      address: sampleBusinesses[1].address,
+      timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+      claimed: false
+    },
+    {
+      id: "p3",
+      businessId: "b3",
+      businessName: "FreshMart Groceries",
+      foodName: "Dairy Products",
+      category: "dairy" as FoodCategory,
+      quantity: "25 items",
+      description: "Yogurt, milk, and cheese near best-by date",
+      location: sampleBusinesses[2].location,
+      address: sampleBusinesses[2].address,
+      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      claimed: true,
+      claimedBy: "c1"
+    },
+    {
+      id: "p4",
+      businessId: "b4",
+      businessName: "Bay Bakery",
+      foodName: "Assorted Pastries",
+      category: "bakery" as FoodCategory,
+      quantity: "30 pieces",
+      description: "Mix of croissants, muffins, and danish pastries",
+      location: sampleBusinesses[3].location,
+      address: sampleBusinesses[3].address,
+      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+      claimed: false
+    },
+    {
+      id: "p5",
+      businessId: "b5",
+      businessName: "Mission Community Kitchen",
+      foodName: "Prepared Meals",
+      category: "prepared" as FoodCategory,
+      quantity: "20 meals",
+      description: "Individual portions of rice, beans, and vegetables",
+      location: sampleBusinesses[4].location,
+      address: sampleBusinesses[4].address,
+      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+      claimed: false
+    },
+    {
+      id: "p6",
+      businessId: "b1",
+      businessName: "Green Spoon Café",
+      foodName: "Day-End Salads",
+      category: "prepared" as FoodCategory,
+      quantity: "8 portions",
+      description: "Fresh salads with grilled chicken and vegetables",
+      location: sampleBusinesses[0].location,
+      address: sampleBusinesses[0].address,
+      timestamp: new Date(Date.now() - 0.5 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      claimed: false
+    },
+    {
+      id: "p7",
+      businessId: "b2",
+      businessName: "Urban Harvest Market",
+      foodName: "Bread Assortment",
+      category: "bakery" as FoodCategory,
+      quantity: "15 loaves",
+      description: "Variety of fresh breads from local bakeries",
+      location: sampleBusinesses[1].location,
+      address: sampleBusinesses[1].address,
+      timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // Already expired
+      claimed: false
+    },
+    {
+      id: "p8",
+      businessId: "b3",
+      businessName: "FreshMart Groceries",
+      foodName: "Packaged Snacks",
+      category: "other" as FoodCategory,
+      quantity: "50 items",
+      description: "Assorted chips, crackers, and granola bars",
+      location: sampleBusinesses[2].location,
+      address: sampleBusinesses[2].address,
+      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+      claimed: true,
+      claimedBy: "c1"
+    },
+    {
+      id: "p9",
+      businessId: "b4",
+      businessName: "Bay Bakery",
+      foodName: "Specialty Breads",
+      category: "bakery" as FoodCategory,
+      quantity: "12 loaves",
+      description: "Artisan sourdough and whole grain breads",
+      location: sampleBusinesses[3].location,
+      address: sampleBusinesses[3].address,
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+      claimed: false
+    },
+    {
+      id: "p10",
+      businessId: "b5",
+      businessName: "Mission Community Kitchen",
+      foodName: "Hot Entrees",
+      category: "prepared" as FoodCategory,
+      quantity: "25 portions",
+      description: "Pasta dishes and vegetable curry",
+      location: sampleBusinesses[4].location,
+      address: sampleBusinesses[4].address,
+      timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+      claimed: false
+    }
+  ];
+
+  // Save sample posts
+  samplePosts.forEach(post => saveFoodPost(post));
+
+  // Do not initialize any demo notifications
 }

@@ -88,7 +88,7 @@ const SignupPage: React.FC = () => {
       
       toast({
         title: "Account created",
-        description: "Welcome to Dasher!",
+        description: "Welcome to dasher!",
       });
       
       // Navigate to homepage/dashboard
@@ -109,7 +109,8 @@ const SignupPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-900 to-black p-4">
       <div className="w-full max-w-md">
         <Link to="/" className="block mb-8 text-center">
-          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500">Dasher</h1>
+          {/* Changed gradient to green and increased font size */}
+          <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-green-600">dasher</h1>
         </Link>
         
         <Card className="border-gray-800 bg-gray-900/50 backdrop-blur">
@@ -158,7 +159,8 @@ const SignupPage: React.FC = () => {
               </div>
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                /* Changed gradient to green */
+                className="w-full bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 text-white"
                 disabled={isLoading}
               >
                 {isLoading ? "Creating account..." : "Sign up"}
@@ -168,7 +170,8 @@ const SignupPage: React.FC = () => {
           <CardFooter className="flex justify-center border-t border-gray-800 pt-4">
             <p className="text-gray-400 text-sm">
               Already have an account?{" "}
-              <Link to="/login" className="text-cyan-500 hover:text-cyan-400">
+              {/* Changed link color to green */}
+              <Link to="/login" className="text-green-500 hover:text-green-400">
                 Log in
               </Link>
             </p>

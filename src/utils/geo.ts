@@ -1,4 +1,3 @@
-
 type Location = {
   lat: number;
   lng: number;
@@ -25,78 +24,54 @@ function deg2rad(deg: number): number {
   return deg * (Math.PI / 180);
 }
 
-// Get current location using browser geolocation API
+// Get current location using browser geolocation API with timeout
 export function getCurrentLocation(): Promise<Location> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error("Geolocation is not supported by your browser"));
       return;
     }
+
+    const timeoutId = setTimeout(() => {
+      reject(new Error("Geolocation request timed out"));
+    }, 10000);
     
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        clearTimeout(timeoutId);
         resolve({
           lat: position.coords.latitude,
           lng: position.coords.longitude
         });
       },
       (error) => {
+        clearTimeout(timeoutId);
         console.error("Error getting location:", error);
-        
-        // Fallback to default location (San Francisco)
-        resolve({
-          lat: 37.7749,
-          lng: -122.4194
-        });
+        reject(error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
       }
     );
   });
 }
 
-// Get mock locations around a center point
-export function getMockLocationsAround(center: Location, count: number, radiusKm: number): Location[] {
-  const locations: Location[] = [];
-  
-  for (let i = 0; i < count; i++) {
-    // Random angle
-    const angle = Math.random() * 2 * Math.PI;
-    // Random radius (adjusting to get a good distribution)
-    const radius = Math.sqrt(Math.random()) * radiusKm;
+// Get address from coordinates using reverse geocoding with OpenStreetMap
+export async function getAddressFromCoordinates(location: Location): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}`
+    );
+    const data = await response.json();
     
-    // Earth radius in km
-    const earthRadius = 6371;
-    
-    // Calculate offsets
-    const latOffset = (radius / earthRadius) * (180 / Math.PI);
-    const lngOffset = (radius / earthRadius) * (180 / Math.PI) / Math.cos(center.lat * Math.PI / 180);
-    
-    // Calculate new position
-    const lat = center.lat + latOffset * Math.cos(angle);
-    const lng = center.lng + lngOffset * Math.sin(angle);
-    
-    locations.push({ lat, lng });
+    if (data && data.display_name) {
+      return data.display_name;
+    }
+    throw new Error('No address found');
+  } catch (error) {
+    console.error('Error getting address:', error);
+    throw error;
   }
-  
-  return locations;
-}
-
-// Get address from coordinates using reverse geocoding (simplified mock version)
-export function getAddressFromCoordinates(location: Location): Promise<string> {
-  // In a real app, we would use a geocoding service like Google Maps API
-  // For this demo, we'll simulate with random addresses
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const streetNames = [
-        "Main Street", "Oak Avenue", "Maple Drive", "Cedar Lane", 
-        "Pine Road", "Elm Street", "Washington Avenue", "Park Place"
-      ];
-      const cityNames = ["Springfield", "Riverdale", "Maplewood", "Oakville", "Pinecrest"];
-      
-      const streetNumber = Math.floor(Math.random() * 1000) + 1;
-      const streetName = streetNames[Math.floor(Math.random() * streetNames.length)];
-      const cityName = cityNames[Math.floor(Math.random() * cityNames.length)];
-      
-      resolve(`${streetNumber} ${streetName}, ${cityName}`);
-    }, 300); // Simulate network delay
-  });
 }

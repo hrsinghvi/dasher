@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -87,7 +86,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         <div className="bg-primary/10 p-2 rounded-full">
           <Utensils className="h-6 w-6 text-primary" />
         </div>
-        <h2 className="text-lg font-semibold">Dasher</h2>
+        <h2 className="text-lg font-semibold">dasher</h2>
       </div>
       
       <Separator />
@@ -180,7 +179,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               <div className="bg-primary/10 p-1 rounded-full">
                 <Utensils className="h-5 w-5 text-primary" />
               </div>
-              <span className="font-semibold">Dasher</span>
+              <span className="font-semibold">dasher</span>
             </div>
           </div>
         </div>
@@ -194,10 +193,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           <div className="flex items-center">
             <Button 
               onClick={() => navigate(user.role === "business" ? "/my-posts" : "/available")}
-              className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-105"
+              className="bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 transition-all duration-300 transform hover:scale-105"
             >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              New Post
+              Available Food
             </Button>
           </div>
         </div>
@@ -207,7 +205,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           <Button 
             onClick={() => navigate(user.role === "business" ? "/my-posts" : "/available")}
             size="lg"
-            className="rounded-full shadow-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-105 h-14 w-14 p-0"
+            className="rounded-full shadow-lg bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 transition-all duration-300 transform hover:scale-105 h-14 w-14 p-0"
           >
             <PlusCircle className="h-6 w-6" />
           </Button>

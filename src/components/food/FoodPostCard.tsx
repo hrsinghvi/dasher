@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,9 +12,11 @@ import {
   ShoppingBag,
   AlertCircle
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { FoodPost } from "@/types";
 import { useUser } from "@/contexts/UserContext";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { ClaimFoodDialog } from "./ClaimFoodDialog";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -27,11 +28,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { saveFoodPost } from "@/utils/storage";
+import { toast } from "@/components/ui/use-toast";
 
 interface FoodPostCardProps {
   post: FoodPost;
   onDelete?: () => void;
-  onClaim?: () => void;
+  onClaim?: (pickupTime: Date) => void;
   onView?: () => void;
   compact?: boolean;
 }
@@ -44,13 +47,81 @@ const FoodPostCard: React.FC<FoodPostCardProps> = ({
   compact = false 
 }) => {
   const { user } = useUser();
+  const { addNotification } = useNotifications();
+  const [isClaimDialogOpen, setIsClaimDialogOpen] = useState(false);
   
   // Calculate time to expiry
   const expiryDate = new Date(post.expiresAt);
   const now = new Date();
   const isExpired = expiryDate < now;
   const timeToExpiry = formatDistanceToNow(expiryDate, { addSuffix: true });
+
+  const handleClaim = (pickupTime: Date, notes: string) => {
+    if (!user) return;
+
+    // Validate the pickup time again as a safeguard
+    if (pickupTime < now || pickupTime > expiryDate) {
+      toast({
+        title: "Invalid pickup time",
+        description: "Please select a valid pickup time",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Update the post
+    const updatedPost = {
+      ...post,
+      claimed: true,
+      claimedBy: user.id,
+      claimedAt: new Date().toISOString(),
+      pickupTime: pickupTime.toISOString(),
+      pickupNotes: notes
+    };
+    
+    // Save the updated post
+    saveFoodPost(updatedPost);
+
+    // Send notifications
+    // Notify the business with pickup details
+    addNotification({
+      userId: post.businessId,
+      title: "Food Item Claimed",
+      message: `${user.name} has claimed "${post.foodName}" for pickup ${format(pickupTime, "PPP 'at' p")}${notes ? ". Notes: " + notes : ""}`,
+      type: "claim",
+      relatedPostId: post.id
+    });
+
+    // Notify the charity with confirmation and pickup reminder
+    addNotification({
+      userId: user.id,
+      title: "Pickup Scheduled",
+      message: `You've scheduled to pick up "${post.foodName}" from ${post.businessName} on ${format(pickupTime, "PPP 'at' p")}. Please arrive on time.`,
+      type: "claim",
+      relatedPostId: post.id
+    });
+
+    // Show success toast
+    toast({
+      title: "Food claimed successfully",
+      description: "The business has been notified of your pickup time.",
+    });
+
+    // Call the parent's onClaim handler if provided
+    if (onClaim) {
+      onClaim(pickupTime);
+    }
+
+    setIsClaimDialogOpen(false);
+  };
   
+  // Determine status for UI
+  const getPostStatus = () => {
+    if (post.claimed) return "Reserved";
+    if (isExpired) return "Completed";
+    return "Available";
+  };
+
   // Determine tag style
   const getExpiryTagClass = () => {
     if (isExpired) return "expired";
@@ -144,9 +215,9 @@ const FoodPostCard: React.FC<FoodPostCardProps> = ({
           {!compact && <Separator className="mb-3" />}
           
           <div className="flex gap-2 justify-end">
-            {user.role === "charity" && !post.claimed && !isExpired && onClaim && (
+            {user.role === "charity" && !post.claimed && !isExpired && (
               <Button 
-                onClick={onClaim}
+                onClick={() => setIsClaimDialogOpen(true)}
                 className={compact ? "h-8 text-xs" : ""}
               >
                 Claim
@@ -191,6 +262,14 @@ const FoodPostCard: React.FC<FoodPostCardProps> = ({
           </div>
         </div>
       </CardFooter>
+
+      {/* Claim Dialog */}
+      <ClaimFoodDialog
+        post={post}
+        isOpen={isClaimDialogOpen}
+        onClose={() => setIsClaimDialogOpen(false)}
+        onClaim={handleClaim}
+      />
     </Card>
   );
 };

@@ -1,4 +1,3 @@
-
 export type UserRole = "business" | "charity";
 
 export interface User {
@@ -22,24 +21,27 @@ export interface User {
   };
 }
 
-export type FoodPost = {
+export type FoodCategory = "produce" | "bakery" | "prepared" | "dairy" | "other";
+
+export interface FoodPost {
   id: string;
   businessId: string;
   businessName: string;
   foodName: string;
+  category: FoodCategory;
   quantity: string;
   description?: string;
-  expiresAt: string; // ISO string
   location: { lat: number; lng: number };
   address: string;
   timestamp: string;
+  expiresAt: string;
   claimed?: boolean;
   claimedBy?: string;
-  category: FoodCategory;
-  distance?: number; // Added for sorting/filtering
-};
-
-export type FoodCategory = "produce" | "bakery" | "prepared" | "dairy" | "other";
+  claimedAt?: string;
+  pickupTime?: string;
+  pickupNotes?: string;
+  distance?: number;
+}
 
 export type Notification = {
   id: string;

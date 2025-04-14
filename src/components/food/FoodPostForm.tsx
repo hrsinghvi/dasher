@@ -302,7 +302,7 @@ const FoodPostForm: React.FC<FoodPostFormProps> = ({ onSuccess }) => {
         </div>
       )}
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button type="submit" className="w-full bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700" disabled={isSubmitting}>
         {isSubmitting ? "Posting..." : "Post Food"}
       </Button>
     </form>
